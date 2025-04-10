@@ -1,5 +1,7 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
+using NakliyeApp.Hubs;
+using NakliyeApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -25,10 +27,13 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
     });
 
 builder.Services.AddAuthorization();
+builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<RatingService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddSignalR();
 
 var app = builder.Build();
 
@@ -44,5 +49,6 @@ app.UseAuthentication(); // Kimlik Doğrulama Middleware'ini ekle
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<NotificationHub>("/notificationHub");
 
 app.Run();

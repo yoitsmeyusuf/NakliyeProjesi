@@ -65,10 +65,17 @@ public class EmailService : IEmailService
         try
         {
             await smtpClient.SendMailAsync(mailMessage);
+            _logger.LogInformation("E-posta başarıyla gönderildi: {ToEmail}", toEmail);
+        }
+        catch (SmtpException ex)
+        {
+            _logger.LogError(ex, "SMTP hatası: {Message}", ex.Message);
+            throw new Exception("E-posta gönderilemedi. Lütfen daha sonra tekrar deneyin.");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Mail gönderme hatası");
+            _logger.LogError(ex, "E-posta gönderim hatası: {Message}", ex.Message);
+            throw;
         }
     }
 }

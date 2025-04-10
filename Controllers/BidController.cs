@@ -1,7 +1,9 @@
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using NakliyeApp.Data;
+using NakliyeApp.DTOs;
 using NakliyeApp.Models;
 using System.Security.Claims;
 
@@ -12,10 +14,12 @@ namespace NakliyeApp.Controllers;
 public class BidController : ControllerBase
 {
     private readonly ApplicationDbContext _context;
+    private readonly ILogger<BidController> _logger;
 
-    public BidController(ApplicationDbContext context)
+    public BidController(ApplicationDbContext context, ILogger<BidController> logger)
     {
         _context = context;
+        _logger = logger;
     }
 
     // GET: api/bid/by-user
@@ -35,28 +39,64 @@ public class BidController : ControllerBase
     // POST: api/bid
     [HttpPost]
     [Authorize]
-    public async Task<IActionResult> CreateBid([FromBody] Bid bid)
+    public async Task<IActionResult> CreateBid([FromBody] BidDto dto)
     {
-        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
-        var role = User.FindFirstValue(ClaimTypes.Role);
+        if (!ModelState.IsValid)
+            return BadRequest(ModelState);
 
-        if (role != UserType.Shipper.ToString())
-            return Forbid("Sadece nakliyeciler teklif verebilir.");
+        try
+        {
+            var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+            var role = User.FindFirstValue(ClaimTypes.Role);
 
-        var shipment = await _context.Shipments.FindAsync(bid.ShipmentId);
-        if (shipment == null)
-            return NotFound("İlan bulunamadı");
+            if (role != UserType.Shipper.ToString())
+                return Forbid("Sadece nakliyeciler teklif verebilir.");
 
-        if (shipment.CustomerId == userId)
-            return BadRequest("Kendi ilanınıza teklif veremezsiniz.");
+            var shipment = await _context.Shipments.FindAsync(dto.ShipmentId);
+            if (shipment == null)
+                return NotFound("İlan bulunamadı");
 
-        bid.ShipperId = userId;
-        bid.CreatedAt = DateTime.UtcNow;
+            if (shipment.CustomerId == userId)
+                return BadRequest("Kendi ilanınıza teklif veremezsiniz.");
 
-        _context.Bids.Add(bid);
-        await _context.SaveChangesAsync();
+            if (shipment.Status != ShipmentStatus.Active)
+                return BadRequest("Bu ilana artık teklif verilemez.");
 
-        return Ok(bid);
+            var existingBid = await _context.Bids
+                .FirstOrDefaultAsync(b => b.ShipmentId == dto.ShipmentId && b.ShipperId == userId);
+
+            if (existingBid != null)
+                return BadRequest("Aynı ilana birden fazla teklif veremezsiniz.");
+
+            var bid = new Bid
+            {
+                Price = dto.Price,
+                ShipmentId = dto.ShipmentId,
+                ShipperId = userId,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            _context.Bids.Add(bid);
+
+            // Create a notification for the shipment owner
+            var notification = new Notification
+            {
+                UserId = shipment.CustomerId,
+                Message = $"Yeni bir teklif aldınız: {bid.Price} TL",
+            };
+            _context.Notifications.Add(notification);
+
+            await _context.SaveChangesAsync();
+
+            _logger.LogInformation("Yeni teklif oluşturuldu: {BidId}", bid.Id);
+
+            return Ok(bid);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Teklif oluşturulurken bir hata oluştu.");
+            return StatusCode(500, "Bir hata oluştu. Lütfen tekrar deneyin.");
+        }
     }
 
     // DELETE: api/bid/5

@@ -17,12 +17,16 @@ public class AuthService
 
     public string GenerateToken(AppUser user)
     {
-        var claims = new[]
+        var claims = new List<Claim>
         {
+            new Claim(ClaimTypes.NameIdentifier, user.Id.ToString()),
             new Claim(ClaimTypes.Name, user.FullName),
             new Claim(ClaimTypes.Email, user.Email),
             new Claim(ClaimTypes.Role, user.UserType.ToString())
         };
+
+        if (user.EmailConfirmed)
+            claims.Add(new Claim("EmailConfirmed", "true"));
 
         var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_jwtSettings.SecretKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
@@ -31,7 +35,7 @@ public class AuthService
             _jwtSettings.Issuer,
             _jwtSettings.Audience,
             claims,
-            expires: DateTime.Now.AddDays(1),
+            expires: DateTime.UtcNow.AddDays(1),
             signingCredentials: creds
         );
 

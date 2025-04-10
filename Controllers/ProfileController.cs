@@ -77,4 +77,55 @@ public class ProfileController : ControllerBase
         return Ok("Şifre başarıyla değiştirildi.");
     }
 
+    // GET: api/profile/{id}
+    [HttpGet("{id}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetUserProfile(int id)
+    {
+        var user = await _context.Users
+            .Include(u => u.Bids)
+            .Include(u => u.Shipments)
+            .FirstOrDefaultAsync(u => u.Id == id);
+
+        if (user == null)
+            return NotFound("Kullanıcı bulunamadı.");
+
+        var averageRating = user.Bids.Any() ? user.Bids.Average(b => b.Price) : 0;
+
+        return Ok(new
+        {
+            user.Id,
+            user.FullName,
+            user.Email,
+            user.UserType,
+            AverageRating = averageRating
+        });
+    }
+
+    // POST: api/profile/upload-photo
+    [HttpPost("upload-photo")]
+    public async Task<IActionResult> UploadProfilePhoto(IFormFile photo)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+        var user = await _context.Users.FindAsync(userId);
+
+        if (user == null)
+            return NotFound("Kullanıcı bulunamadı.");
+
+        var uploadsFolder = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "profile-photos");
+        Directory.CreateDirectory(uploadsFolder);
+
+        var fileName = $"{Guid.NewGuid()}_{photo.FileName}";
+        var filePath = Path.Combine(uploadsFolder, fileName);
+
+        using (var stream = new FileStream(filePath, FileMode.Create))
+        {
+            await photo.CopyToAsync(stream);
+        }
+
+        user.PhotoPath = $"/profile-photos/{fileName}";
+        await _context.SaveChangesAsync();
+
+        return Ok("Profil fotoğrafı başarıyla yüklendi.");
+    }
 }

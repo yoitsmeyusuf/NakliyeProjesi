@@ -10,14 +10,14 @@ namespace NakliyeApp
         public ApplicationDbContext CreateDbContext(string[] args)
         {
             var config = new ConfigurationBuilder()
-                .SetBasePath(Directory.GetCurrentDirectory()) // proje kökünü alır
+                .SetBasePath(Directory.GetCurrentDirectory())
                 .AddJsonFile("appsettings.json")
                 .Build();
 
             var optionsBuilder = new DbContextOptionsBuilder<ApplicationDbContext>();
             var connectionString = config.GetConnectionString("DefaultConnection");
 
-            optionsBuilder.UseNpgsql(connectionString); // PostgreSQL kullanıyorsun
+            optionsBuilder.UseNpgsql(connectionString); // Ensure compatibility with PostgreSQL
 
             return new ApplicationDbContext(optionsBuilder.Options);
         }
