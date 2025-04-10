@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("NakliyeProjesi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+cbfff2056e76ec81e22a8c2b961d4a130b5c95a5")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+a451b078b8fdd0307c5786299e4ed59b75372247")]
 [assembly: System.Reflection.AssemblyProductAttribute("NakliyeProjesi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("NakliyeProjesi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

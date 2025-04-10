@@ -5,8 +5,11 @@ namespace NakliyeApp.Models;
 public enum ShipmentStatus
 {
     Active,
+    InTransit, // New status for shipments in transit
     Completed,
-    Cancelled
+    Cancelled,
+    Pending, // For shipments awaiting action
+    Postponed // For delayed shipments
 }
 
 public class Shipment

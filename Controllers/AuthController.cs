@@ -50,7 +50,8 @@ public class AuthController : ControllerBase
             _context.Users.Add(user);
             await _context.SaveChangesAsync();
 
-            await _emailService.SendEmailConfirmationAsync(user);
+            var verificationLink = $"{Request.Scheme}://{Request.Host}/api/auth/verify-email?token={user.EmailConfirmationToken}";
+            await _emailService.SendEmailConfirmationAsync(user, verificationLink);
 
             _logger.LogInformation("Kullanıcı başarıyla kaydedildi: {Email}", dto.Email);
             return Ok("Kayıt başarılı. Lütfen e-posta adresinizi doğrulayın.");
@@ -92,10 +93,16 @@ public class AuthController : ControllerBase
         {
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Email == dto.Email);
             if (user == null || !BCrypt.Net.BCrypt.Verify(dto.Password, user.PasswordHash))
+            {
+                _logger.LogWarning("Login failed for email: {Email}", dto.Email);
                 return Unauthorized("Invalid email or password.");
+            }
 
             if (!user.EmailConfirmed)
+            {
+                _logger.LogWarning("Login attempt for unverified email: {Email}", dto.Email);
                 return Unauthorized("Please verify your email first.");
+            }
 
             var token = _authService.GenerateToken(user);
             _logger.LogInformation("User logged in successfully: {Email}", dto.Email);
@@ -103,7 +110,7 @@ public class AuthController : ControllerBase
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error occurred during login.");
+            _logger.LogError(ex, "Error occurred during login for email: {Email}", dto.Email);
             return StatusCode(500, "An error occurred. Please try again later.");
         }
     }
@@ -121,7 +128,8 @@ public class AuthController : ControllerBase
             user.PasswordResetTokenExpires = DateTime.UtcNow.AddHours(1);
             await _context.SaveChangesAsync();
 
-            await _emailService.SendPasswordResetAsync(user);
+            var resetLink = $"{Request.Scheme}://{Request.Host}/reset-password?token={user.PasswordResetToken}";
+            await _emailService.SendPasswordResetAsync(user, resetLink);
 
             _logger.LogInformation("Password reset link sent to: {Email}", dto.Email);
             return Ok("Password reset link has been sent to your email.");

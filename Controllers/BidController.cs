@@ -82,6 +82,7 @@ public class BidController : ControllerBase
             var notification = new Notification
             {
                 UserId = shipment.CustomerId,
+                CreatedByUserId = userId,
                 Message = $"Yeni bir teklif aldınız: {bid.Price} TL",
             };
             _context.Notifications.Add(notification);
@@ -135,10 +136,22 @@ public class BidController : ControllerBase
 
         // Sadece fiyat güncellenebilir
         bid.Price = updatedBid.Price;
+
+        // Notify the shipment owner about the updated bid
+        var shipment = await _context.Shipments.FindAsync(bid.ShipmentId);
+        if (shipment != null)
+        {
+            var notification = new Notification
+            {
+                UserId = shipment.CustomerId,
+                CreatedByUserId = userId,
+                Message = $"Teklif güncellendi: {bid.Price} TL",
+            };
+            _context.Notifications.Add(notification);
+        }
+
         await _context.SaveChangesAsync();
 
         return Ok(bid);
     }
-
-    
 }

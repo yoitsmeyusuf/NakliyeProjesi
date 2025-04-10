@@ -1,6 +1,6 @@
 public class JwtSettings
 {
-    public string SecretKey { get; set; } = null!;
-    public string Issuer { get; set; } = null!;
-    public string Audience { get; set; } = null!;
+    public required string SecretKey { get; set; }
+    public required string Issuer { get; set; }
+    public required string Audience { get; set; }
 }

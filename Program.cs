@@ -1,6 +1,8 @@
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.IdentityModel.Tokens;
 using NakliyeApp.Hubs;
+using NakliyeApp.Models;
 using NakliyeApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -28,12 +30,36 @@ builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 
 builder.Services.AddAuthorization();
 builder.Services.AddScoped<PaymentService>();
+builder.Services.AddScoped<AuthService>();
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.Configure<PayTRSettings>(builder.Configuration.GetSection("PayTR"));
 builder.Services.AddScoped<RatingService>();
 
 builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddSignalR();
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowFrontend", policy =>
+    {
+        policy.WithOrigins("http://localhost:3000") // Replace with your frontend URL
+              .AllowAnyHeader()
+              .AllowAnyMethod();
+    });
+});
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter("default", limiterOptions =>
+    {
+        limiterOptions.PermitLimit = 100; // Max 100 requests
+        limiterOptions.Window = TimeSpan.FromMinutes(1);
+        limiterOptions.QueueProcessingOrder = System.Threading.RateLimiting.QueueProcessingOrder.OldestFirst;
+        limiterOptions.QueueLimit = 10; // Max 10 queued requests
+    });
+});
 
 var app = builder.Build();
 
@@ -47,8 +73,11 @@ if (app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseAuthentication(); // Kimlik Doğrulama Middleware'ini ekle
 app.UseAuthorization();
+app.UseCors("AllowFrontend");
+app.UseRateLimiter();
 
 app.MapControllers();
 app.MapHub<NotificationHub>("/notificationHub");
+app.MapHub<ChatHub>("/chatHub");
 
 app.Run();

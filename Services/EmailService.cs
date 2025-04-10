@@ -5,8 +5,8 @@ using NakliyeApp.Models;
 
 public interface IEmailService
 {
-    Task SendEmailConfirmationAsync(AppUser user);
-    Task SendPasswordResetAsync(AppUser user);
+    Task SendEmailConfirmationAsync(AppUser user, string verificationLink);
+    Task SendPasswordResetAsync(AppUser user, string resetLink);
 }
 
 public class EmailService : IEmailService
@@ -17,28 +17,26 @@ public class EmailService : IEmailService
     public EmailService(IConfiguration config, ILogger<EmailService> logger)
     {
         _config = config;
-        _logger = logger;
+        _logger = _logger;
     }
 
-    public async Task SendEmailConfirmationAsync(AppUser user)
+    public async Task SendEmailConfirmationAsync(AppUser user, string verificationLink)
     {
-        var link = $"https://senin-site.com/api/auth/verify-email?token={user.EmailConfirmationToken}";
         var subject = "E-posta Doğrulama";
         var body = $"""
             Merhaba {user.FullName},<br/>
-            Lütfen e-posta adresinizi doğrulamak için <a href="{link}">buraya tıklayın</a>.
+            Lütfen e-posta adresinizi doğrulamak için <a href="{verificationLink}">buraya tıklayın</a>.
         """;
 
         await SendEmailAsync(user.Email, subject, body);
     }
 
-    public async Task SendPasswordResetAsync(AppUser user)
+    public async Task SendPasswordResetAsync(AppUser user, string resetLink)
     {
-        var link = $"https://senin-site.com/reset-password?token={user.PasswordResetToken}";
         var subject = "Şifre Sıfırlama";
         var body = $"""
             Merhaba {user.FullName},<br/>
-            Şifrenizi sıfırlamak için <a href="{link}">buraya tıklayın</a>. Link 1 saat geçerlidir.
+            Şifrenizi sıfırlamak için <a href="{resetLink}">buraya tıklayın</a>. Link 1 saat geçerlidir.
         """;
 
         await SendEmailAsync(user.Email, subject, body);

@@ -31,6 +31,14 @@ public class NotificationController : ControllerBase
         var notifications = await _context.Notifications
             .Where(n => n.UserId == userId)
             .OrderByDescending(n => n.CreatedAt)
+            .Select(n => new
+            {
+                n.Id,
+                n.Message,
+                n.CreatedAt,
+                n.IsRead,
+                CreatedBy = n.CreatedByUserId // Include the sender of the notification
+            })
             .ToListAsync();
 
         return Ok(notifications);

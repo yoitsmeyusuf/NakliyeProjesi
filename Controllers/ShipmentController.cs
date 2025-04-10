@@ -93,9 +93,10 @@ public class ShipmentController : ControllerBase
 
         return Ok(shipment.Bids);
     }
+
     [Authorize(Roles = "Customer")]
     [HttpPost("{shipmentId}/accept-bid/{bidId}")]
-    public async Task<IActionResult> AcceptBid(int shipmentId, int bidId)
+    public async Task<IActionResult> AcceptBidA(int shipmentId, int bidId)
     {
         var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
 
@@ -111,11 +112,12 @@ public class ShipmentController : ControllerBase
             return NotFound("Teklif bu ilana ait değil.");
 
         shipment.AcceptedBidId = bidId;
-        shipment.Status = ShipmentStatus.Completed; // Mark shipment as completed
+        shipment.Status = ShipmentStatus.InTransit; // Mark shipment as "In Transit"
         await _context.SaveChangesAsync();
 
-        return Ok("Teklif kabul edildi ve ilan kapatıldı.");
+        return Ok("Teklif kabul edildi ve ilan 'Yolda' olarak işaretlendi.");
     }
+
     [Authorize(Roles = "Customer")]
     [HttpPost("{shipmentId}/complete")]
     public async Task<IActionResult> CompleteShipment(int shipmentId)
@@ -195,5 +197,109 @@ public class ShipmentController : ControllerBase
         await _context.SaveChangesAsync();
 
         return Ok("Fotoğraf başarıyla yüklendi.");
+    }
+
+    [Authorize(Roles = "Customer")]
+    [HttpPut("{id}/accept-bid")]
+    public async Task<IActionResult> AcceptBid(int id, [FromBody] int bidId)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var shipment = await _context.Shipments
+            .Include(s => s.Bids)
+            .FirstOrDefaultAsync(s => s.Id == id && s.CustomerId == userId);
+
+        if (shipment == null)
+            return NotFound("İlan bulunamadı.");
+
+        var bid = shipment.Bids.FirstOrDefault(b => b.Id == bidId);
+        if (bid == null)
+            return NotFound("Teklif bu ilana ait değil.");
+
+        shipment.AcceptedBidId = bidId;
+        shipment.Status = ShipmentStatus.InTransit; // Mark shipment as "In Transit"
+
+        // Notify the carrier
+        var notification = new Notification
+        {
+            UserId = bid.ShipperId,
+            Message = "Teklifiniz kabul edildi. İlan yolda olarak işaretlendi.",
+        };
+        _context.Notifications.Add(notification);
+
+        // Notify other bidders
+        var otherBidders = shipment.Bids.Where(b => b.Id != bidId).Select(b => b.ShipperId).Distinct();
+        foreach (var bidderId in otherBidders)
+        {
+            _context.Notifications.Add(new Notification
+            {
+                UserId = bidderId,
+                Message = "İlan için başka bir teklif kabul edildi.",
+            });
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok("Teklif kabul edildi ve ilan 'Yolda' olarak işaretlendi.");
+    }
+
+    [Authorize(Roles = "Customer")]
+    [HttpPut("{id}/status")]
+    public async Task<IActionResult> UpdateShipmentStatus(int id, [FromBody] ShipmentStatus status)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var shipment = await _context.Shipments
+            .FirstOrDefaultAsync(s => s.Id == id && s.CustomerId == userId);
+
+        if (shipment == null)
+            return NotFound("İlan bulunamadı.");
+
+        shipment.Status = status;
+
+        // Trigger rating request if completed
+        if (status == ShipmentStatus.Completed)
+        {
+            var notification = new Notification
+            {
+                UserId = shipment.AcceptedBid?.ShipperId ?? 0,
+                Message = "İlan başarıyla tamamlandı. Lütfen bir değerlendirme bırakın.",
+            };
+            _context.Notifications.Add(notification);
+        }
+
+        await _context.SaveChangesAsync();
+
+        return Ok($"İlan durumu '{status}' olarak güncellendi.");
+    }
+
+    [Authorize(Roles = "Customer")]
+    [HttpPost("{id}/cancel")]
+    public async Task<IActionResult> CancelShipment(int id, [FromBody] string reason)
+    {
+        var userId = int.Parse(User.FindFirstValue(ClaimTypes.NameIdentifier)!);
+
+        var shipment = await _context.Shipments
+            .FirstOrDefaultAsync(s => s.Id == id && s.CustomerId == userId);
+
+        if (shipment == null)
+            return NotFound("İlan bulunamadı.");
+
+        if (shipment.Status == ShipmentStatus.Completed)
+            return BadRequest("Tamamlanmış bir ilan iptal edilemez.");
+
+        shipment.Status = ShipmentStatus.Cancelled;
+
+        // Record cancellation reason
+        var notification = new Notification
+        {
+            UserId = shipment.AcceptedBid?.ShipperId ?? 0,
+            Message = $"İlan iptal edildi. Sebep: {reason}",
+        };
+        _context.Notifications.Add(notification);
+
+        await _context.SaveChangesAsync();
+
+        return Ok("İlan başarıyla iptal edildi.");
     }
 }

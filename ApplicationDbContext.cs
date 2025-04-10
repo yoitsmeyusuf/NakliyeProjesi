@@ -43,6 +43,12 @@ public class ApplicationDbContext : DbContext
             .HasForeignKey(n => n.UserId)
             .OnDelete(DeleteBehavior.Cascade);
 
+        modelBuilder.Entity<Notification>()
+            .HasOne<AppUser>()
+            .WithMany()
+            .HasForeignKey(n => n.CreatedByUserId)
+            .OnDelete(DeleteBehavior.Restrict);
+
         // Configure Rating relationships
         modelBuilder.Entity<Rating>()
             .HasOne(r => r.User)

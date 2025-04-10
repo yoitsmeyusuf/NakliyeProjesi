@@ -11,6 +11,9 @@ public class Notification
     public AppUser User { get; set; } = null!;
 
     [Required]
+    public int CreatedByUserId { get; set; } // Sender of the notification
+
+    [Required]
     [MaxLength(500)]
     public string Message { get; set; } = null!;
 

@@ -224,6 +224,25 @@ The NakliyeProjesi API provides functionality for managing shipments, bids, user
 
 ---
 
+### Get Ratings for a Shipment
+**GET** `/api/rating/shipment/{shipmentId}`
+
+**Response**:
+- `200 OK`: Returns ratings for the specified shipment.
+  ```json
+  [
+    {
+      "id": 1,
+      "userId": 2,
+      "shipmentId": 1,
+      "score": 5,
+      "comment": "Great service!"
+    }
+  ]
+  ```
+
+---
+
 ## Notifications
 
 ### Get Notifications
@@ -240,6 +259,14 @@ The NakliyeProjesi API provides functionality for managing shipments, bids, user
 **Response**:
 - `200 OK`: Notification marked as read.
 - `404 Not Found`: Notification not found.
+
+---
+
+### Mark All Notifications as Read
+**PUT** `/api/notification/mark-all-as-read`
+
+**Response**:
+- `200 OK`: All notifications marked as read.
 
 ---
 
@@ -267,6 +294,24 @@ The NakliyeProjesi API provides functionality for managing shipments, bids, user
 
 **Response**:
 - `200 OK`: Returns the authenticated user's profile.
+
+---
+
+### Get User Profile by ID
+**GET** `/api/profile/{id}`
+
+**Response**:
+- `200 OK`: Returns the user's public profile.
+  ```json
+  {
+    "id": 1,
+    "fullName": "John Doe",
+    "email": "johndoe@example.com",
+    "userType": "Shipper",
+    "averageRating": 4.5
+  }
+  ```
+- `404 Not Found`: User not found.
 
 ---
 
@@ -335,6 +380,18 @@ connection.start()
     .catch(err => console.error("SignalR connection error:", err));
 ```
 
+### Send Notification
+**SignalR Method**: `SendNotification`
+
+**Parameters**:
+- `userId`: The ID of the user to send the notification to.
+- `message`: The notification message.
+
+**Example**:
+```javascript
+connection.invoke("SendNotification", "1", "Your shipment has been completed.");
+```
+
 ---
 
 ## Payment (Placeholder)
@@ -353,6 +410,101 @@ connection.start()
 
 **Response**:
 - `200 OK`: Payment processed successfully (placeholder response).
+
+---
+
+## New Endpoints
+
+### Chat
+
+#### Send Message
+**POST** `/api/chat/send`
+
+**Request Body**:
+```json
+{
+  "senderId": 1,
+  "recipientId": 2,
+  "content": "Hello, I am interested in your shipment."
+}
+```
+
+**Response**:
+- `200 OK`: Message sent successfully.
+
+---
+
+### Real-Time Messaging (SignalR)
+
+#### SignalR Chat Hub
+**Endpoint**: `/chatHub`
+
+#### SignalR Client Setup
+```javascript
+const connection = new signalR.HubConnectionBuilder()
+    .withUrl("/chatHub")
+    .build();
+
+connection.on("ReceiveMessage", (senderId, message) => {
+    console.log(`New message from ${senderId}: ${message}`);
+    alert(`New message: ${message}`);
+});
+
+connection.start()
+    .then(() => console.log("SignalR connected"))
+    .catch(err => console.error("SignalR connection error:", err));
+```
+
+#### Send Message
+**SignalR Method**: `SendMessage`
+
+**Parameters**:
+- `recipientId`: The ID of the user to send the message to.
+- `senderId`: The ID of the user sending the message.
+- `message`: The message content.
+
+**Example**:
+```javascript
+connection.invoke("SendMessage", "2", "1", "Hello, I am interested in your shipment.");
+```
+
+---
+
+### Payment
+
+#### Process Payment
+**POST** `/api/payment/process`
+
+**Request Body**:
+```json
+{
+  "amount": 100.50,
+  "currency": "TRY",
+  "description": "Payment for shipment",
+  "cardNumber": "4111111111111111",
+  "cardHolderName": "John Doe",
+  "expireMonth": "12",
+  "expireYear": "2025",
+  "cvc": "123"
+}
+```
+
+**Response**:
+- `200 OK`: Payment processed successfully.
+  ```json
+  {
+    "paymentId": "123456789",
+    "requiresRedirect": false
+  }
+  ```
+- `200 OK`: Payment requires 3D Secure redirect.
+  ```json
+  {
+    "redirectUrl": "https://3dsecure.example.com",
+    "requiresRedirect": true
+  }
+  ```
+- `400 Bad Request`: Validation errors or payment failure.
 
 ---
 
